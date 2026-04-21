@@ -32,13 +32,17 @@ function openDetails(apt: Appointment) {
 }
 
 onMounted(async () => {
-  // Demo mode: show all appointments (no auth required)
-  // In production: filter by auth.user?.email
   await appointments.fetchAppointments();
 });
 
 const upcomingList = computed(() => appointments.upcomingAppointments);
 const nextAppointment = computed(() => appointments.nextAppointment);
+const pagination = computed(() => appointments.pagination);
+
+async function goToPage(page: number) {
+  appointments.setPage(page);
+  await appointments.fetchAppointments();
+}
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr);
@@ -251,6 +255,7 @@ async function confirmCancel() {
         <div
           v-for="apt in upcomingList"
           :key="apt.id"
+
           class="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700 rounded-2xl p-5 hover:shadow-soft-md hover:border-primary-300 dark:hover:border-primary-700 transition-all duration-300"
         >
           <div class="flex flex-col sm:flex-row gap-4">
@@ -307,12 +312,17 @@ async function confirmCancel() {
               </div>
 
               <div class="flex flex-wrap items-center gap-3 mt-2 text-xs text-neutral-500 dark:text-neutral-400">
-                <span v-if="apt.createdAt">
-                  Booked on {{ formatCreatedAt(apt.createdAt) }}
+                <span v-if="apt.patientFirstName || apt.patientLastName">
+                  {{ apt.patientFirstName }} {{ apt.patientLastName }}
                 </span>
-                <span v-if="apt.confirmationNumber">
-                  · #{{ apt.confirmationNumber }}
+                <span v-if="apt.reason" class="truncate max-w-xs">
+                  · {{ apt.reason }}
                 </span>
+              </div>
+
+              <div class="flex flex-wrap items-center gap-3 mt-1 text-xs text-neutral-400 dark:text-neutral-500">
+                <span v-if="apt.createdAt">Booked {{ formatCreatedAt(apt.createdAt) }}</span>
+                <span v-if="apt.confirmationNumber">· #{{ apt.confirmationNumber }}</span>
               </div>
             </div>
 
@@ -335,6 +345,32 @@ async function confirmCancel() {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <div v-if="pagination.totalPages > 1" class="flex items-center justify-between mt-6 px-1">
+        <p class="text-sm text-neutral-500 dark:text-neutral-400">
+          Showing {{ (pagination.page - 1) * pagination.limit + 1 }}–{{ Math.min(pagination.page * pagination.limit, pagination.total) }} of {{ pagination.total }}
+        </p>
+        <div class="flex items-center gap-2">
+          <button
+            @click="goToPage(pagination.page - 1)"
+            :disabled="pagination.page === 1"
+            class="px-3 py-1.5 text-sm font-semibold rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            ← Prev
+          </button>
+          <span class="text-sm font-semibold text-neutral-700 dark:text-neutral-300">
+            {{ pagination.page }} / {{ pagination.totalPages }}
+          </span>
+          <button
+            @click="goToPage(pagination.page + 1)"
+            :disabled="pagination.page === pagination.totalPages"
+            class="px-3 py-1.5 text-sm font-semibold rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            Next →
+          </button>
         </div>
       </div>
     </div>
@@ -370,9 +406,9 @@ async function confirmCancel() {
               <div class="flex items-center justify-between p-4 bg-neutral-100 dark:bg-neutral-900 rounded-2xl">
                 <div>
                   <p class="text-xs text-neutral-500 dark:text-neutral-400 mb-1">Confirmation #</p>
-                  <p class="font-mono font-semibold text-neutral-900 dark:text-white">{{ selectedAppointment.confirmationNumber || 'N/A' }}</p>
-                  <p v-if="selectedAppointment.createdAt" class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
-                    Booked on {{ formatCreatedAt(selectedAppointment.createdAt) }}
+                  <p class="font-mono font-semibold text-neutral-900 dark:text-white">{{ selectedAppointment.confirmationNumber || '—' }}</p>
+                  <p class="text-xs text-neutral-500 dark:text-neutral-400 mt-1">
+                    Booked {{ formatCreatedAt(selectedAppointment.createdAt) }}
                   </p>
                 </div>
                 <span :class="['px-2.5 py-1 rounded-full text-xs font-semibold', getStatusColor(selectedAppointment.status)]">
@@ -380,17 +416,17 @@ async function confirmCancel() {
                 </span>
               </div>
 
-              <!-- Doctor & Schedule -->
+              <!-- Appointment -->
               <div class="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl space-y-3">
-                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase">Appointment</h4>
+                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Appointment</h4>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Doctor</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.doctor?.name || 'Doctor' }}</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.doctor?.name || '—' }}</p>
                   </div>
                   <div>
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Specialty</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.specialty }}</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.specialty || '—' }}</p>
                   </div>
                   <div>
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Date</p>
@@ -400,87 +436,105 @@ async function confirmCancel() {
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Time</p>
                     <p class="font-medium text-neutral-900 dark:text-white">{{ formatTime(selectedAppointment.slotTime) }}</p>
                   </div>
+                  <div class="col-span-2">
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Reason for Visit</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.reason || '—' }}</p>
+                  </div>
+                  <div v-if="selectedAppointment.notes" class="col-span-2">
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Notes</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.notes }}</p>
+                  </div>
                 </div>
               </div>
 
-              <!-- Patient Info -->
+              <!-- Patient Information -->
               <div class="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl space-y-3">
-                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase">Patient Information</h4>
+                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Patient Information</h4>
                 <div class="grid grid-cols-2 gap-3">
                   <div>
-                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Name</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.patientFirstName }} {{ selectedAppointment.patientLastName }}</p>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">First Name</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.patientFirstName || '—' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Last Name</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.patientLastName || '—' }}</p>
                   </div>
                   <div>
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Email</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.patientEmail || 'N/A' }}</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.patientEmail || '—' }}</p>
                   </div>
                   <div>
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Phone</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.patientPhone || 'N/A' }}</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.patientPhone || '—' }}</p>
                   </div>
-                  <div v-if="selectedAppointment.dateOfBirth">
+                  <div>
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Date of Birth</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.dateOfBirth }}</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.dateOfBirth || '—' }}</p>
                   </div>
-                  <div v-if="selectedAppointment.gender">
+                  <div>
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Gender</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.gender }}</p>
+                    <p class="font-medium text-neutral-900 dark:text-white capitalize">{{ selectedAppointment.gender || '—' }}</p>
                   </div>
-                  <div v-if="selectedAppointment.address" class="col-span-2">
+                  <div class="col-span-2">
                     <p class="text-xs text-neutral-500 dark:text-neutral-400">Address</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.address }}</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.address || '—' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Emergency Contact</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.emergencyContact || '—' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Emergency Phone</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.emergencyPhone || '—' }}</p>
                   </div>
                 </div>
               </div>
 
-              <!-- Emergency Contact -->
-              <div v-if="selectedAppointment.emergencyContact || selectedAppointment.emergencyPhone" class="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl space-y-3">
-                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase">Emergency Contact</h4>
+              <!-- Medical History -->
+              <div class="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl space-y-3">
+                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Medical History</h4>
                 <div class="grid grid-cols-2 gap-3">
-                  <div v-if="selectedAppointment.emergencyContact">
-                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Contact Name</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.emergencyContact }}</p>
+                  <div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Blood Type</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.medicalHistorySnapshot?.bloodType || '—' }}</p>
                   </div>
-                  <div v-if="selectedAppointment.emergencyPhone">
-                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Contact Phone</p>
-                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.emergencyPhone }}</p>
+                  <div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Smoking</p>
+                    <p class="font-medium text-neutral-900 dark:text-white capitalize">{{ selectedAppointment.medicalHistorySnapshot?.smokingStatus || '—' }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Alcohol</p>
+                    <p class="font-medium text-neutral-900 dark:text-white capitalize">{{ selectedAppointment.medicalHistorySnapshot?.alcoholConsumption || '—' }}</p>
+                  </div>
+                  <div class="col-span-2">
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Allergies</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.medicalHistorySnapshot?.allergies || '—' }}</p>
+                  </div>
+                  <div class="col-span-2">
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Chronic Conditions</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.medicalHistorySnapshot?.chronicConditions || '—' }}</p>
+                  </div>
+                  <div class="col-span-2">
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Current Medications</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.medicalHistorySnapshot?.currentMedications || '—' }}</p>
+                  </div>
+                  <div class="col-span-2">
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Previous Surgeries</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.medicalHistorySnapshot?.previousSurgeries || '—' }}</p>
+                  </div>
+                  <div class="col-span-2">
+                    <p class="text-xs text-neutral-500 dark:text-neutral-400">Family History</p>
+                    <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.medicalHistorySnapshot?.familyHistory || '—' }}</p>
                   </div>
                 </div>
               </div>
 
-              <!-- Reason & Notes -->
-              <div v-if="selectedAppointment.reason || selectedAppointment.notes" class="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl space-y-3">
-                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase">Visit Details</h4>
-                <div v-if="selectedAppointment.reason">
-                  <p class="text-xs text-neutral-500 dark:text-neutral-400">Reason for Visit</p>
-                  <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.reason }}</p>
-                </div>
-                <div v-if="selectedAppointment.notes">
-                  <p class="text-xs text-neutral-500 dark:text-neutral-400">Additional Notes</p>
-                  <p class="font-medium text-neutral-900 dark:text-white">{{ selectedAppointment.notes }}</p>
-                </div>
-              </div>
-
-              <!-- Medical History (dynamic) -->
-              <div v-if="selectedAppointment.medicalHistorySnapshot && Object.keys(selectedAppointment.medicalHistorySnapshot).some(k => selectedAppointment!.medicalHistorySnapshot[k])" class="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl space-y-3">
-                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase">Medical History</h4>
-                <div class="space-y-2">
-                  <template v-for="(value, key) in selectedAppointment.medicalHistorySnapshot" :key="key">
-                    <div v-if="value">
-                      <p class="text-xs text-neutral-500 dark:text-neutral-400">{{ formatFieldLabel(String(key)) }}</p>
-                      <p class="font-medium text-neutral-900 dark:text-white">{{ formatFieldValue(value) }}</p>
-                    </div>
-                  </template>
-                </div>
-              </div>
-
-              <!-- Specialty-Specific Data (dynamic) -->
-              <div v-if="selectedAppointment.specialtyFormData && Object.keys(selectedAppointment.specialtyFormData).filter(k => selectedAppointment!.specialtyFormData[k]).length > 0" class="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl space-y-3">
-                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase">Specialty Details</h4>
-                <div class="space-y-2">
+              <!-- Specialty-Specific Data -->
+              <div v-if="selectedAppointment.specialtyFormData && Object.keys(selectedAppointment.specialtyFormData).length > 0" class="p-4 bg-neutral-50 dark:bg-neutral-900 rounded-2xl space-y-3">
+                <h4 class="text-sm font-semibold text-neutral-500 dark:text-neutral-400 uppercase tracking-wider">Specialty Details</h4>
+                <div class="grid grid-cols-2 gap-3">
                   <template v-for="(value, key) in selectedAppointment.specialtyFormData" :key="key">
-                    <div v-if="value">
+                    <div :class="typeof value === 'string' && value.length > 20 ? 'col-span-2' : ''">
                       <p class="text-xs text-neutral-500 dark:text-neutral-400">{{ formatFieldLabel(String(key)) }}</p>
                       <p class="font-medium text-neutral-900 dark:text-white">{{ formatFieldValue(value) }}</p>
                     </div>

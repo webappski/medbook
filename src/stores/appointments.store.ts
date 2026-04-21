@@ -89,12 +89,6 @@ export const useAppointmentsStore = defineStore('appointments', () => {
           ['pending', 'confirmed'].includes(a.status) &&
           aptDate >= now
         );
-      })
-      .sort((a, b) => {
-        // Sort by createdAt descending (newest bookings first)
-        const createdA = new Date(a.createdAt).getTime();
-        const createdB = new Date(b.createdAt).getTime();
-        return createdB - createdA;
       });
   });
 
@@ -148,8 +142,7 @@ export const useAppointmentsStore = defineStore('appointments', () => {
       let query = supabase
         .from('appointments')
         .select('*', { count: 'exact' })
-        .order('slot_date', { ascending: false })
-        .order('slot_start_time', { ascending: false });
+        .order('created_at', { ascending: false });
 
       // Apply patient filter (for cabinet) - filter by email for widget bookings
       if (patientIdOrEmail) {

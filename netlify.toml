@@ -9,6 +9,11 @@
 
 # API Routes - specific routes first, then general
 [[redirects]]
+  from = "/api/specialties"
+  to = "/.netlify/functions/specialties"
+  status = 200
+
+[[redirects]]
   from = "/api/health"
   to = "/.netlify/functions/health"
   status = 200

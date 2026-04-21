@@ -1,5 +1,5 @@
 import type { Handler } from '@netlify/functions';
-import { supabase, jsonResponse, errorResponse, corsHeaders } from './lib/supabase';
+import { supabase, supabaseAdmin, jsonResponse, errorResponse, corsHeaders } from './lib/supabase';
 
 function generateAppointmentId(): string {
   const date = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -53,6 +53,17 @@ interface AppointmentRequestBody {
   notes?: string;
   // Legacy field support
   medicalInfo?: Record<string, unknown>;
+}
+
+/** Look up a registered patient's UUID by email (bypasses RLS via admin client) */
+async function lookupPatientId(email: string): Promise<string | null> {
+  if (!supabaseAdmin) return null;
+  const { data } = await supabaseAdmin
+    .from('profiles')
+    .select('id')
+    .eq('email', email.toLowerCase())
+    .maybeSingle();
+  return data?.id ?? null;
 }
 
 function validateSpecialtyFields(_specialty: string, _data: any = {}): string[] {
@@ -254,6 +265,9 @@ export const handler: Handler = async (event) => {
     // Merge legacy medicalInfo with new medicalHistory
     const finalMedicalHistory = medicalHistory || medicalInfo || {};
 
+    // Link appointment to registered user (if email matches a profile)
+    const patientId = await lookupPatientId(patient.email);
+
     // Create appointment with all fields
     const { error: insertError } = await supabase.from('appointments').insert({
       id: appointmentIdGen,
@@ -280,6 +294,8 @@ export const handler: Handler = async (event) => {
       specialty_form_data: specialtyFormData || {},
       // Legacy field (keeping for backward compatibility)
       medical_info: medicalInfo ? JSON.stringify(medicalInfo) : null,
+      // Link to registered user (null for anonymous bookings)
+      patient_id: patientId,
       // Appointment details
       reason,
       notes: notes || null,

@@ -354,7 +354,7 @@ function clearFilters() {
       </div>
 
       <!-- Pagination -->
-      <div v-if="totalPages > 1" class="flex items-center justify-between px-6 py-4 border-t border-gray-700">
+      <div v-if="totalCount > 0" class="flex items-center justify-between px-6 py-4 border-t border-gray-700">
         <p class="text-sm text-gray-400">
           Showing {{ (currentPage - 1) * pageSize + 1 }} to {{ Math.min(currentPage * pageSize, totalCount) }} of {{ totalCount }}
         </p>
