@@ -8,10 +8,15 @@
   </head>
   <body>
     <!-- Typelessity Booking Widget -->
-    <script type="module" src="http://localhost:5175/src/index.ts"></script>
+    <!-- Production: Vercel CDN. Both addresses below used to point at localhost,
+         so the widget rendered only on the machine that had the dev servers
+         running — every visitor to the deployed site saw no widget at all. -->
+    <script type="module" src="https://typelessity-widget.vercel.app/widget.js"></script>
+    <!-- Development: local widget (run: pnpm --filter @typelessity/widget dev)
+         <script type="module" src="http://localhost:5175/src/index.ts"></script> -->
     <typelessity-widget
       config-id="00000000-0000-0000-0000-000000000011"
-      api-url="http://localhost:3000"
+      api-url="https://typelessity.vercel.app"
     ></typelessity-widget>
 
     <div id="app"></div>
