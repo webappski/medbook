@@ -59,11 +59,6 @@ const stepDescriptions: Record<string, string> = {
   'confirmation': 'Review and confirm your booking'
 };
 
-// Position typeless-form widget to bottom-left
-(window as any).typelessFormConfig = {
-  position: { bottom: 20, left: 20 }
-};
-
 onMounted(async () => {
   const doctorId = route.params.doctorId as string;
   loadingDoctor.value = true;
@@ -406,9 +401,5 @@ function goToStep(index: number) {
       </div>
     </div>
 
-    <!-- Typeless Form: AI voice form filling -->
-    <Teleport to="body">
-      <typeless-form api-key="tf_jgqSDHZuXKjyz8IlnhhFg5-EB-PDuCWt"></typeless-form>
-    </Teleport>
   </div>
 </template>

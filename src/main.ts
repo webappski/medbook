@@ -1,4 +1,3 @@
-// import 'typelessform-widget'; // using local dev server on :5174 instead
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import App from './App.vue';
