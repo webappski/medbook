@@ -8,10 +8,9 @@ export default defineConfig({
     vue({
       template: {
         compilerOptions: {
-          // Treat typelessity-widget as custom element (Web Component)
-          isCustomElement: (tag) => tag.startsWith('typelessity-')
-        }
-      }
+          isCustomElement: (tag) => tag === 'typeless-form',
+        },
+      },
     })
   ],
   resolve: {
